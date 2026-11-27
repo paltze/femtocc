@@ -304,6 +304,8 @@ Mnemonic            | Notes
 
 ## Appendix B
 
+A list of the 11 pseudo-instructions provided by the assembler
+
 Mnemonic            | Notes
 --------------------|------
 `PUSH Rs`           | Pushes `Rs` onto the stack
@@ -316,3 +318,4 @@ Mnemonic            | Notes
 `JE label, Ra, Rb`  | If `Ra == Rb` jump to `label`
 `JNE label, Ra, Rb` | If `Ra != Rb` jump to `label`
 `JLT label, Ra, Rb` | If `Ra < Rb` jump to `label`
+`JGT label, Ra, Rb` | If `Ra > Rb` jump to `label`
