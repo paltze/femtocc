@@ -1,0 +1,44 @@
+BasedOnStyle: LLVM
+
+# Indentation
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ContinuationIndentWidth: 4
+
+# Braces: K&R
+BreakBeforeBraces: Attach
+
+# Pointer formatting: `type* name`
+PointerAlignment: Left
+DerivePointerAlignment: false
+
+# Spacing
+SpaceBeforeParens: ControlStatements
+SpaceAfterCStyleCast: false
+
+# Keep control flow compact
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortBlocksOnASingleLine: Never
+AllowShortFunctionsOnASingleLine: None
+
+# Switch statements
+IndentCaseLabels: true
+AllowShortCaseLabelsOnASingleLine: true
+
+# Initializer lists
+AlignAfterOpenBracket: BlockIndent
+BinPackLongBracedList: false
+Cpp11BracedListStyle: true
+BracedInitializerIndentWidth: 4
+AlignArrayOfStructures: Left
+
+# Avoid include reordering
+SortIncludes: Never
+
+# Wrapping
+ColumnLimit: 100
+
+# Enums
+AllowShortEnumsOnASingleLine: false
