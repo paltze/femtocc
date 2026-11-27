@@ -1,5 +1,6 @@
 #include "as.h"
 
+#include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -33,7 +34,8 @@ static const Instr instrs[] = {
     {"CLR",   1, P, 22},
     {"JE",    5, P, 23},
     {"JNE",   5, P, 24},
-    {"JLT",   6, P, 25}
+    {"JLT",   6, P, 25},
+    {"JGT",   4, P, 26}
 };
 
 static const int instr_size = sizeof(instrs) / sizeof(Instr);
@@ -69,7 +71,8 @@ void as_build_labels(FILE* fp, Label* labels, int* label_size) {
             strcpy(labels[*label_size].name, mnemonic);
 
             (*label_size)++;
-        } else {
+        }
+        else {
             const Instr* instr = find_instr(mnemonic);
             if (instr == NULL)
                 printf("Error unknown instruction: %s\n", mnemonic);
@@ -143,15 +146,18 @@ void as_build_output(FILE* in, FILE* out, Label* labels, int label_count) {
             sscanf(line, "%s %[^,], %[^,], %s", mnemonic, r1, r2, r3);
             int d = parse_reg(r1), s = parse_reg(r2), t = parse_reg(r3);
             fprintf(out, "%1hX%1hX%1hX%1hX\n", instr->id, d, s, t);
-        } else if (instr->type == I) {
+        }
+        else if (instr->type == I) {
             sscanf(line, "%s %[^,], %s", mnemonic, r1, imm_s);
             int d = parse_reg(r1), imm = parse_imm(imm_s);
             fprintf(out, "%1hX%1hX%02hX\n", instr->id, d, imm);
-        } else if (instr->type == M) {
+        }
+        else if (instr->type == M) {
             sscanf(line, "%s %[^,], %[^,], %s", mnemonic, r1, r2, r3);
             int d = parse_reg(r1), rhi = parse_reg(r2), rlo = parse_reg(r3);
             fprintf(out, "%1hX%1hX%1hX%1hX\n", instr->id, d, rhi, rlo);
-        } else if (instr->type == J) {
+        }
+        else if (instr->type == J) {
             if (instr->id == 15) {
                 fprintf(out, "F000\n");
                 continue;
@@ -161,7 +167,8 @@ void as_build_output(FILE* in, FILE* out, Label* labels, int label_count) {
             if (instr->id == 12 || instr->id == 13) {
                 sscanf(line, "%s %[^,], %s", mnemonic, label, r1);
                 rs = parse_reg(r1);
-            } else
+            }
+            else
                 sscanf(line, "%s %s", mnemonic, label);
 
             u16 addr;
@@ -180,34 +187,41 @@ void as_build_output(FILE* in, FILE* out, Label* labels, int label_count) {
             int rs = parse_reg(r1);
 
             fprintf(out, "8F01\n1EEF\nA%1hXEE\n", rs);
-        } else if (instr->id == 17) {
+        }
+        else if (instr->id == 17) {
             sscanf(line, "%s %s", mnemonic, r1);
             int rs = parse_reg(r1);
 
             fprintf(out, "9%1hXEE\n8F01\n0EEF\n", rs);
-        } else if (instr->id == 18) {
+        }
+        else if (instr->id == 18) {
             sscanf(line, "%s %s", mnemonic, imm_s);
             u8 imm = parse_imm(imm_s);
 
             fprintf(out, "8C%02hX\n", imm);
             fprintf(out, "8F01\n1EEF\nACEE\n");
-        } else if (instr->id == 19) {
+        }
+        else if (instr->id == 19) {
             sscanf(line, "%s %[^,], %s", mnemonic, r1, r2);
             int rd = parse_reg(r1), rs = parse_reg(r2);
             fprintf(out, "2%1hX%1hX%1hX\n", rd, rs, rs);
-        } else if (instr->id == 20) {
+        }
+        else if (instr->id == 20) {
             sscanf(line, "%s %s", mnemonic, r1);
             int rs = parse_reg(r1);
             fprintf(out, "8F01\n0%1hX%1hXF\n", rs, rs);
-        } else if (instr->id == 21) {
+        }
+        else if (instr->id == 21) {
             sscanf(line, "%s %s", mnemonic, r1);
             int rs = parse_reg(r1);
             fprintf(out, "8F01\n1%1hX%1hXF\n", rs, rs);
-        } else if (instr->id == 22) {
+        }
+        else if (instr->id == 22) {
             sscanf(line, "%s %s", mnemonic, r1);
             int rs = parse_reg(r1);
             fprintf(out, "8%hX00\n", rs);
-        } else if (instr->id == 23 || instr->id == 24 || instr->id == 25) {
+        }
+        else if (instr->id == 23 || instr->id == 24) {
             sscanf(line, "%s %[^,], %[^,], %s", mnemonic, label, r1, r2);
             int rs = parse_reg(r1), rt = parse_reg(r2);
 
@@ -217,11 +231,8 @@ void as_build_output(FILE* in, FILE* out, Label* labels, int label_count) {
                 return;
             }
 
-            if (instr->id == 23 || instr->id == 24)
-                fprintf(out, "1F%1hX%1hX\n2DFF\n", rs, rt);
-            else
-                fprintf(out, "1F%1hX%1hX\n8C01\n7DDC\n", rs, rt);
-
+            fprintf(out, "1F%1hX%1hX\n", rs, rt);
+            fprintf(out, "2DFF\n");
             fprintf(out, "8C%02hX\n", lo(addr));
             fprintf(out, "8F%02hX\n", hi(addr));
 
@@ -229,6 +240,36 @@ void as_build_output(FILE* in, FILE* out, Label* labels, int label_count) {
                 fprintf(out, "CFCD\n");
             else
                 fprintf(out, "DFCD\n");
+        }
+        else if (instr->id == 25) {
+            sscanf(line, "%s %[^,], %[^,], %s", mnemonic, label, r1, r2);
+            int rs = parse_reg(r1), rt = parse_reg(r2);
+
+            u16 addr;
+            if (!find_label(&addr, label, labels, label_count)) {
+                printf("Unknown label: %s\n", label);
+                return;
+            }
+
+            fprintf(out, "1F%1hX%1hX\n8C01\n7DDC\n", rs, rt);
+            fprintf(out, "8C%02hX\n", lo(addr));
+            fprintf(out, "8F%02hX\n", hi(addr));
+            fprintf(out, "DFCD\n");
+        }
+        else if (instr->id == 26) {
+            sscanf(line, "%s %[^,], %[^,], %s", mnemonic, label, r1, r2);
+            int rs = parse_reg(r1), rt = parse_reg(r2);
+
+            u16 addr;
+            if (!find_label(&addr, label, labels, label_count)) {
+                printf("Unknown label: %s\n", label);
+                return;
+            }
+
+            fprintf(out, "1F%1hX%1hX\n", rs, rt);
+            fprintf(out, "8C%02hX\n", lo(addr));
+            fprintf(out, "8F%02hX\n", hi(addr));
+            fprintf(out, "CFCD\n");
         }
     }
 }

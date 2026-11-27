@@ -6,8 +6,10 @@ TabWidth: 4
 UseTab: Never
 ContinuationIndentWidth: 4
 
-# Braces: K&R
-BreakBeforeBraces: Attach
+# Braces: K&R, except else on a new line
+BreakBeforeBraces: Custom
+BraceWrapping:
+  BeforeElse: true
 
 # Pointer formatting: `type* name`
 PointerAlignment: Left
