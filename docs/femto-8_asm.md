@@ -12,6 +12,11 @@
 - [Instruction Syntax](#instruction-syntax)
 - [Address Resolution](#address-resolution)
 - [Pseudo-Instructions](#pseudo-instructions)
+- [Directives](#directives)
+  - [Data Directives](#data-directives)
+  - [Data Pool Layout](#data-pool-layout)
+  - [Constants](#constants)
+  - [File Inclusion](#file-inclusion)
 - [Stack Operations](#stack-operations)
 - [Program Entry](#program-entry)
 - [ABI Notes](#abi-notes)
@@ -24,7 +29,7 @@
 
 Femto-8 ASM is the official assembly language for the Femto-8 virtual CPU.
 
-It provides a human-readable representation of Femto-8 machine code while introducing a number of assembler conveniences such as labels, pseudo-instructions and address resolution.
+It provides a human-readable representation of Femto-8 machine code while introducing a number of assembler conveniences such as labels, pseudo-instructions, directives, and address resolution.
 
 The assembler outputs Femto-8 Hex, which can be directly executed by the Femto-8 emulator.
 
@@ -44,6 +49,7 @@ Each source line consists of one of the following:
 
 - an instruction
 - a label
+- a directive
 - a comment
 - a blank line
 
@@ -76,6 +82,8 @@ Entire lines may also be comments.
 ```asm
 ; This function computes the factorial
 ```
+
+Semicolons inside double-quoted string literals are treated as literal characters rather than comments.
 
 ## Labels
 
@@ -136,10 +144,10 @@ Alias | Register | Notes
 Currently, two bits are utlized.
 
 - If the `0x1` bit is set, the last arithmetic operation computed to zero
-    - Only `ADD` and `SUB` instructions set this bit when appropriate, all other instructions do not interact with this bit.
+  - Only `ADD` and `SUB` instructions set this bit when appropriate, all other instructions do not interact with this bit.
 
 - If the `0x2` bit is set, the last arithmetic operation either produced a carry, or needed a borrow, whichever is appropriate
-    - Only `ADD` and `SUB` instructions set this bit when appropriate, all other instructions do not interact with this bit
+  - Only `ADD` and `SUB` instructions set this bit when appropriate, all other instructions do not interact with this bit
 
 - Arithmetic operations on stack pointer do not interact with status register
 
@@ -227,6 +235,94 @@ MOVI R0, 0
 
 > See [Appendix B](#appendix-b) for a full list of pseudo-instructions
 
+## Directives
+
+Directives are assembler commands prefixed with a dot (`.`). Unlike instruction mnemonics, directive names are case-insensitive.
+
+### Data Directives
+
+Data directives define raw bytes, words, strings, or binary blobs in memory.
+
+Directive               | Description
+------------------------|------------
+`.byte v1, v2, ...`     | Emits one or more 8-bit values (literals, `.equ` constants, or labels truncated to 8 bits)
+`.word v1, v2, ...`     | Emits one or more 16-bit little-endian values (literals, `.equ` constants, or 16-bit label addresses)
+`.zero count`           | Emits `count` zero bytes (`0x00`)
+`.fill count, value`    | Emits `count` copies of the 8-bit `value`
+`.ascii "text"`         | Emits raw ASCII bytes without a null terminator
+`.asciiz "text"`        | Emits raw ASCII bytes followed by a null terminator (`0x00`)
+`.incbin "path"`        | Embeds the raw bytes of an external binary file
+
+`.ascii` and `.asciiz` support the escape sequences `\n`, `\r`, `\t`, `\0`, `\\`, and `\"`.
+
+Example:
+
+```asm
+table:
+    .byte 0x11, 0x22, 0x33
+    .word 0xBEEF
+
+buffer:
+    .zero 16
+
+greeting:
+    .asciiz "Hello;Femto\n"
+```
+
+Use `LOADD` and `STORED` to read and write bytes at labeled data addresses:
+
+```asm
+LOADD R0, table
+STORED R0, buffer
+```
+
+### Data Pool Layout
+
+All data directives across the program (including included files) are collected into a single contiguous data pool placed at the end of the emitted output.
+
+- Labels placed immediately before a data directive automatically resolve to their final address inside the data pool.
+- Before emitting the data pool, the assembler inserts a single `JMP` instruction that skips past the data block.
+- If the total size of the data pool is odd, a single `0x00` padding byte is appended to preserve 2-byte alignment.
+- Multi-byte values (`.word` and paired hex output) are emitted in little-endian byte order.
+
+### Constants
+
+The `.equ` directive defines a named compile-time constant.
+
+Syntax:
+
+```asm
+.equ NAME, value
+```
+
+Example:
+
+```asm
+.equ BUF_SIZE, 16
+.equ FILL_VAL, 0xAA
+
+MOVI R0, FILL_VAL
+buf:
+    .fill BUF_SIZE, FILL_VAL
+```
+
+`.equ` constants can be used anywhere an immediate or data value is expected (`MOVI`, `PUSHI`, `.byte`, `.word`, `.zero`, `.fill`). Constants used as allocation sizes (the count argument of `.zero` and `.fill`) must be defined before they are referenced.
+
+### File Inclusion
+
+The `.include` directive inserts another assembly source file at the current location during assembly.
+
+Syntax:
+
+```asm
+.include "path/to/file.asm"
+```
+
+- Paths are resolved relative to the working directory from which the assembler is invoked.
+- Includes may be nested up to a maximum depth of 32.
+- Circular includes are detected and rejected with an assembly error.
+- Included files share the same label table, `.equ` table, and deferred data pool as the root file.
+
 ## Stack Operations
 
 The assembler provides pseudo-instructions to interact with the stack.
@@ -304,7 +400,7 @@ Mnemonic            | Notes
 
 ## Appendix B
 
-A list of the 11 pseudo-instructions provided by the assembler
+A list of the 13 pseudo-instructions provided by the assembler
 
 Mnemonic            | Notes
 --------------------|------
@@ -319,3 +415,5 @@ Mnemonic            | Notes
 `JNE label, Ra, Rb` | If `Ra != Rb` jump to `label`
 `JLT label, Ra, Rb` | If `Ra < Rb` jump to `label`
 `JGT label, Ra, Rb` | If `Ra > Rb` jump to `label`
+`LOADD Rd, label`   | `Rd <- mem[label]`
+`STORED Rs, label`  | `Rs -> mem[label]`
